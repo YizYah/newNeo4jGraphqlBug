@@ -3,105 +3,57 @@ import {ApolloServer, gql} from 'apollo-server';
 import {Neo4jGraphQL} from '@neo4j/graphql';
 import { mockDriver, mockSessionFromQuerySet, QuerySpec, wrapCopiedResults} from 'neo-forgery'
 
-
 // GRAPHQL
 
-const CREATE_BOOKS_MUTATION = `
-mutation($createBooksInput: [BookCreateInput!]!) {
-  createBooks(input: $createBooksInput) {
-    books {
-      title,
-      author
-    }
+export const DELETE_BOOKS_MUTATION = `
+mutation ($bookWhere: BookWhere){
+  deleteBooks(where: $bookWhere) {
+      nodesDeleted
   }
 }
 `
 
-const CREATE_BOOKS_PARAMS = {
-    "createBooksInput": [
-        {
-            "title": "The Great Gatsby",
-            "author": "F. Scott Fitzgerald"
-        },
-        {
-            "title": "Beloved",
-            "author": "Toni Morrison"
-        }
-    ]
+export const DELETE_BOOKS_PARAMS = {
+    "bookWhere": {
+        "title": "Gatsby JS",
+        "author": "F. Scott Fitzgerald"
+    }
 }
 
-const CREATE_BOOKS_OUTPUT = {
-    "books": [
-        {
-            "title": "The Great Gatsby",
-            "author": "F. Scott Fitzgerald"
-        },
-        {
-            "title": "Beloved",
-            "author": "Toni Morrison"
-        }
-    ]
+export const DELETE_BOOKS_OUTPUT = {
+    "nodesDeleted": 1
 }
 
 // NEO4J QUERY
-const createBooksNeo4jQuery = `
-CALL {
-CREATE (this0:Book)
-SET this0.title = $this0_title
-SET this0.author = $this0_author
-RETURN this0
-}
-CALL {
-CREATE (this1:Book)
-SET this1.title = $this1_title
-SET this1.author = $this1_author
-RETURN this1
-}
 
-
-
-RETURN 
-this0 { .title, .author } AS this0, 
-this1 { .title, .author } AS this1
+export const deleteBooksNeo4jQuery = `
+MATCH (this:Book)
+WHERE this.title = $this_title AND this.author = $this_author
+DETACH DELETE this
 `
-const createBooksNeo4jParams = {
-    "this0_title": "The Great Gatsby",
-    "this0_author": "F. Scott Fitzgerald",
-    "this1_title": "Beloved",
-    "this1_author": "Toni Morrison"
+export const deleteBooksNeo4jParams = {
+    "this_title": "Gatsby JS",
+    "this_author": "F. Scott Fitzgerald"
 }
-const createBooksNeo4jOutput = wrapCopiedResults([
+export const deleteBooksNeo4jOutput = wrapCopiedResults(
+    [],
     {
-        "keys": [
-            "this0",
-            "this1"
-        ],
-        "length": 2,
-        "_fields": [
-            {
-                "title": "The Great Gatsby",
-                "author": "F. Scott Fitzgerald"
+        "updateStatistics": {
+            "_stats": {
+                "nodesDeleted": 1,
             },
-            {
-                "title": "Beloved",
-                "author": "Toni Morrison"
-            }
-        ],
-        "_fieldLookup": {
-            "this0": 0,
-            "this1": 1
-        }
+        },
     }
-])
+)
 
-const createBooksQuery = {
-    name: 'createBooks',
-    query: createBooksNeo4jQuery,
-    params: createBooksNeo4jParams,
-    output: createBooksNeo4jOutput,
+export const deletionQueryInfo =     {
+    name: 'deleteBooks',
+    query: deleteBooksNeo4jQuery,
+    params: deleteBooksNeo4jParams,
+    output: deleteBooksNeo4jOutput,
 }
 
-const querySet: QuerySpec[] = [ createBooksQuery ]
+const querySet: QuerySpec[] = [ deletionQueryInfo ]
 
 
 // SERVER
@@ -143,20 +95,12 @@ const server: ApolloServer = newServer(context)
 
 
 // TEST
-test('createBooks', async (t: any) => {
-
-    let result: any
-    result = await server.executeOperation({
-        query: CREATE_BOOKS_MUTATION,
-        variables: CREATE_BOOKS_PARAMS,
+test('deleteBooks', async (t: any) => {
+    const result = await server.executeOperation({
+        query: DELETE_BOOKS_MUTATION,
+        variables: DELETE_BOOKS_PARAMS,
     });
 
     console.log(`result.errors = ${JSON.stringify(result.errors)}`)
     t.true(result.errors === undefined);
-
-    // t.deepEqual(
-    //     // @ts-ignore
-    //     result.data.createBooks,
-    //     CREATE_BOOKS_OUTPUT
-    // );
 });
